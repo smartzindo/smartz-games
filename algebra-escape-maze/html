@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Algebra Escape Maze Space</title>
+    <style>
+        :root {
+            --bg-dark: #050510;
+            --neon-blue: #00f3ff;
+            --neon-purple: #b026ff;
+            --neon-green: #39ff14;
+            --neon-red: #ff003c;
+            --text-light: #e0e0ff;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: var(--font-main);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        #global-ui {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-blue);
+            transition: all 0.3s;
+        }
+
+        .icon-btn:hover {
+            background: var(--neon-blue);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-in-out;
+            background: rgba(5, 5, 16, 0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #fff;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-purple), 0 0 20px var(--neon-purple), 0 0 40px var(--neon-blue);
+            letter-spacing: 2px;
+        }
+
+        .menu-btn {
+            background: transparent;
+            border: 2px solid var(--neon-purple);
+            color: #fff;
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            margin: 10px;
+            border-radius: 30px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+            box-shadow: 0 0 15px rgba(176, 38, 255, 0.5);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .menu-btn:hover {
+            background: var(--neon-purple);
+            box-shadow: 0 0 25px var(--neon-purple);
+            transform: scale(1.05);
+        }
+
+        .menu-btn.multi {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.5);
+        }
+        .menu-btn.multi:hover {
+            background: var(--neon-blue);
+            box-shadow: 0 0 25px var(--neon-blue);
+        }
+
+        #game-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            position: relative;
+        }
+
+        .game-instance {
+            flex: 1;
+            position: relative;
+            border: 2px solid #222;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .game-instance:nth-child(1) { border-color: var(--neon-blue); }
+        .game-instance:nth-child(2) { border-color: var(--neon-green); }
+
+        .top-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            z-index: 20;
+        }
+
+        .question-box {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-purple);
+            text-align: center;
+            flex: 1;
+        }
+
+        .stats-box {
+            font-size: 1.2rem;
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-item span { color: var(--neon-green); font-weight: bold; }
+        .stat-item .hearts { color: var(--neon-red); }
+
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            border-radius: 10px;
+        }
+
+        .mobile-controls {
+            display: none; 
+            width: 100%;
+            height: 150px;
+            background: rgba(0,0,0,0.8);
+            border-top: 2px solid rgba(255,255,255,0.1);
+            position: relative;
+            z-index: 20;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .d-pad {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .d-btn {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--neon-blue);
+            font-size: 20px;
+            border-radius: 50%;
+            touch-action: none; 
+        }
+        
+        .game-instance:nth-child(1) .d-btn { border-color: var(--neon-blue); color: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue);}
+        .game-instance:nth-child(2) .d-btn { border-color: var(--neon-green); color: var(--neon-green); box-shadow: 0 0 10px var(--neon-green);}
+
+        .d-btn:active { background: rgba(255,255,255,0.3); }
+
+        .d-up { top: 0; left: 40px; }
+        .d-down { bottom: 0; left: 40px; }
+        .d-left { top: 40px; left: 0; }
+        .d-right { top: 40px; right: 0; }
+
+        .overlay-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            z-index: 30;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .msg-correct { color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); }
+        .msg-wrong { color: var(--neon-red); text-shadow: 0 0 20px var(--neon-red); }
+
+        .game-over-panel {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .game-over-panel h2 { color: var(--neon-red); font-size: 3rem; margin-bottom: 20px;}
+        .game-over-panel .final-score { font-size: 2rem; margin-bottom: 30px; }
+
+        @media (max-width: 1024px) {
+            .mobile-controls { display: flex; }
+        }
+
+        .layout-horizontal { flex-direction: row; }
+        .layout-vertical { flex-direction: column; }
+        
+        @media (max-aspect-ratio: 4/5) {
+            .game-instance {
+                border-width: 1px 0;
+            }
+            .mobile-controls { height: 100px; }
+            .d-pad { width: 90px; height: 90px; }
+            .d-btn { width: 30px; height: 30px; font-size: 16px; }
+            .d-up { left: 30px; }
+            .d-down { left: 30px; }
+            .d-left { top: 30px; }
+            .d-right { top: 30px; }
+            .top-ui { padding: 5px; }
+            .question-box { font-size: 1rem; }
+            .stats-box { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="global-ui">
+        <div class="icon-btn" id="btn-audio" title="Toggle Audio">🔊</div>
+        <div class="icon-btn" id="btn-fullscreen" title="Toggle Fullscreen">⛶</div>
+    </div>
+
+    <!-- Main Menu Screen (Only 1P and 2P now) -->
+    <div id="menu-screen" class="screen">
+        <h1>Algebra<br>Escape Maze</h1>
+        <button class="menu-btn" onclick="startGame(1)">Single Player</button>
+        <button class="menu-btn multi" onclick="startGame(2)">Multiplayer (2P)</button>
+        <p style="margin-top: 30px; max-width: 400px; text-align: center; color: #aaa;">
+            <b>Cara Bermain:</b><br>
+            Cari jalan di labirin menuju jawaban yang benar dari soal aljabar di atas. Hindari alien musuh!
+            <br><br>
+            <b>Kontrol:</b> Desktop: Tahan WASD / Arrow Keys. Mobile: Tahan tombol arah.
+        </p>
+    </div>
+
+    <div id="game-container" class="hidden layout-horizontal"></div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioEnabled = false;
+
+        const Sounds = {
+            playTone: (freq, type, duration, vol=0.1) => {
+                if(!audioEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            correct: () => {
+                Sounds.playTone(600, 'sine', 0.1, 0.2);
+                setTimeout(() => Sounds.playTone(800, 'sine', 0.2, 0.2), 100);
+            },
+            wrong: () => {
+                Sounds.playTone(150, 'sawtooth', 0.3, 0.2);
+            },
+            hit: () => {
+                Sounds.playTone(100, 'square', 0.4, 0.3);
+            }
+        };
+
+        document.getElementById('btn-audio').addEventListener('click', () => {
+            audioEnabled = !audioEnabled;
+            if(audioEnabled && audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('btn-audio').innerText = audioEnabled ? '🔊' : '🔇';
+        });
+
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let stars = [];
+        
+        function initStars() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            stars = [];
+            for(let i=0; i<100; i++) {
+                stars.push({
+                    x: Math.random() * bgCanvas.width,
+                    y: Math.random() * bgCanvas.height,
+                    z: Math.random() * 2,
+                    speed: (Math.random() * 0.5) + 0.1
+                });
+            }
+        }
+        
+        function drawStars() {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            bgCtx.fillStyle = 'white';
+            stars.forEach(star => {
+                bgCtx.globalAlpha = star.z / 2;
+                bgCtx.beginPath();
+                bgCtx.arc(star.x, star.y, star.z, 0, Math.PI*2);
+                bgCtx.fill();
+                star.y += star.speed;
+                if(star.y > bgCanvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * bgCanvas.width;
+                }
+            });
+            requestAnimationFrame(drawStars);
+        }
+        
+        window.addEventListener('resize', initStars);
+        initStars();
+        drawStars();
+
+        class MathEngine {
+            static generate() {
+                // 7th Grade Algebra: ax + b = c, x/a = b, x + a = b
+                const types = [0, 1, 2];
+                const type = types[Math.floor(Math.random() * types.length)];
+                let qText = "", ans = 0, decoys = [];
+
+                if (type === 0) { // x + a = b
+                    let a = Math.floor(Math.random() * 20) + 1;
+                    let b = Math.floor(Math.random() * 20) + 10;
+                    ans = b - a;
+                    qText = `x + ${a} = ${b}`;
+                } else if (type === 1) { // ax = b
+                    let a = Math.floor(Math.random() * 8) + 2;
+                    ans = Math.floor(Math.random() * 10) + 2;
+                    let b = a * ans;
+                    qText = `${a}x = ${b}`;
+                } else { // ax + b = c
+                    let a = Math.floor(Math.random() * 5) + 2;
+                    let x = Math.floor(Math.random() * 10) + 1;
+                    let b = Math.floor(Math.random() * 10) + 1;
+                    let c = (a * x) + b;
+                    ans = x;
+                    qText = `${a}x + ${b} = ${c}`;
+                }
+
+                // Generate unique decoys
+                while(decoys.length < 3) {
+                    let decoy = ans + (Math.floor(Math.random() * 10) - 5);
+                    if(decoy !== ans && !decoys.includes(decoy) && decoy >= 0) decoys.push(decoy);
+                }
+
+                return { text: `Tentukan nilai x:  ${qText}`, answer: ans, decoys: decoys };
+            }
+        }
+
+        // 0 = Path, 1 = Wall, 2 = Player Spawn, 3 = Enemy Spawn, 4 = Answer Nodes
+        const mazeTemplates = [
+            [
+                "111111111111111",
+                "120000010000031",
+                "101110111011101",
+                "140000040000041",
+                "101110111011101",
+                "100010000010001",
+                "111011010110111",
+                "000000010000000",
+                "111011111110111",
+                "100000010000001",
+                "101111010111101",
+                "140000030000041",
+                "111111111111111"
+            ],
+            [
+                "111111111111111",
+                "140003111300041",
+                "101110000011101",
+                "101110111011101",
+                "100000111000001",
+                "111110111011111",
+                "000000020000000",
+                "111110111011111",
+                "100000111000001",
+                "101110111011101",
+                "101110000011101",
+                "140003111300041",
+                "111111111111111"
+            ],
+            [
+                "111111111111111",
+                "140000000000041",
+                "101111101111101",
+                "101000000000101",
+                "101011111110101",
+                "100013000310001",
+                "111010111010111",
+                "100010020010001",
+                "101011111110101",
+                "101000000000101",
+                "101111101111101",
+                "140000000000041",
+                "111111111111111"
+            ],
+            [
+                "111111111111111",
+                "120011141110031",
+                "111000000000111",
+                "100011111110001",
+                "101000000000101",
+                "101111101111101",
+                "000000000000000",
+                "101111101111101",
+                "101000000000101",
+                "100011111110001",
+                "111000000000111",
+                "140011141110031",
+                "111111111111111"
+            ]
+        ];
+
+        class Entity {
+            constructor(c, r, type) {
+                this.c = c; this.r = r;
+                this.targetC = c; this.targetR = r;
+                this.type = type; 
+                this.speed = type === 'player' ? 0.15 : 0.08;
+                this.x = c; this.y = r; 
+                this.dir = null; 
+            }
+
+            update(grid) {
+                let dx = this.targetC - this.x;
+                let dy = this.targetR - this.y;
+                
+                if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+                    if (Math.abs(dx) > this.speed) this.x += Math.sign(dx) * this.speed;
+                    else this.x = this.targetC;
+                    
+                    if (Math.abs(dy) > this.speed) this.y += Math.sign(dy) * this.speed;
+                    else this.y = this.targetR;
+                } else {
+                    this.x = this.targetC;
+                    this.y = this.targetR;
+                    this.c = this.targetC;
+                    this.r = this.targetR;
+
+                    if(this.type === 'enemy') {
+                        this.pickRandomDir(grid);
+                    }
+                }
+
+                if(this.c < 0) { this.x = this.c = this.targetC = grid[0].length - 1; }
+                if(this.c >= grid[0].length) { this.x = this.c = this.targetC = 0; }
+            }
+
+            setTarget(dir, grid) {
+                if (this.c !== this.targetC || this.r !== this.targetR) return;
+
+                let nc = this.c, nr = this.r;
+                if (dir === 'up') nr--;
+                if (dir === 'down') nr++;
+                if (dir === 'left') nc--;
+                if (dir === 'right') nc++;
+
+                let checkR = (nr + grid.length) % grid.length;
+                let checkC = (nc + grid[0].length) % grid[0].length;
+
+                if (grid[checkR][checkC] !== 1) {
+                    this.targetC = nc;
+                    this.targetR = nr;
+                    this.dir = dir;
+                }
+            }
+
+            pickRandomDir(grid) {
+                const dirs = ['up', 'down', 'left', 'right'];
+                const validDirs = dirs.filter(d => {
+                    let nc = this.c, nr = this.r;
+                    if(d==='up') nr--; if(d==='down') nr++; if(d==='left') nc--; if(d==='right') nc++;
+                    if(nr>=0 && nr<grid.length && nc>=0 && nc<grid[0].length) {
+                        return grid[nr][nc] !== 1 && d !== this.getOppositeDir(this.dir);
+                    }
+                    if(nr<0 || nr>=grid.length || nc<0 || nc>=grid[0].length) return true;
+                    return false;
+                });
+
+                if (validDirs.length > 0) {
+                    const rnd = validDirs[Math.floor(Math.random() * validDirs.length)];
+                    this.setTarget(rnd, grid);
+                } else {
+                    this.setTarget(this.getOppositeDir(this.dir), grid);
+                }
+            }
+
+            getOppositeDir(dir) {
+                if(dir==='up') return 'down'; if(dir==='down') return 'up';
+                if(dir==='left') return 'right'; if(dir==='right') return 'left';
+                return null;
+            }
+        }
+
+        class GameInstance {
+            constructor(containerId, colorName, controlsMap) {
+                this.id = containerId;
+                this.color = `var(--neon-${colorName})`;
+                this.controlsMap = controlsMap;
+                this.grid = [];
+                this.player = null;
+                this.enemies = [];
+                this.items = []; 
+                this.mathData = null;
+                
+                this.score = 0;
+                this.lives = 3;
+                this.isGameOver = false;
+                this.mazeYOffset = 0; 
+
+                this.initDOM();
+                this.loadLevel();
+                this.resize();
+                
+                this.lastTime = 0;
+                this.loop = this.loop.bind(this);
+                requestAnimationFrame(this.loop);
+            }
+
+            initDOM() {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'game-instance';
+                
+                wrapper.innerHTML = `
+                    <div class="top-ui">
+                        <div class="stats-box">
+                            <div class="stat-item">⭐ <span class="score-display">0</span></div>
+                            <div class="stat-item"><span class="hearts-display">❤❤❤</span></div>
+                        </div>
+                        <div class="question-box">Loading...</div>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <canvas class="game-canvas"></canvas>
+                        <div class="overlay-msg"></div>
+                    </div>
+                    <div class="mobile-controls">
+                        <div class="d-pad">
+                            <div class="d-btn d-up">▲</div>
+                            <div class="d-btn d-left">◀</div>
+                            <div class="d-btn d-right">▶</div>
+                            <div class="d-btn d-down">▼</div>
+                        </div>
+                    </div>
+                    <div class="game-over-panel hidden">
+                        <h2>GAME OVER</h2>
+                        <div class="final-score">Score: <span>0</span></div>
+                        <button class="menu-btn" onclick="location.reload()">Main Menu</button>
+                    </div>
+                `;
+                document.getElementById('game-container').appendChild(wrapper);
+
+                this.dom = wrapper;
+                this.canvas = wrapper.querySelector('.game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.qBox = wrapper.querySelector('.question-box');
+                this.scoreBox = wrapper.querySelector('.score-display');
+                this.heartsBox = wrapper.querySelector('.hearts-display');
+                this.overlay = wrapper.querySelector('.overlay-msg');
+                this.gameOverPanel = wrapper.querySelector('.game-over-panel');
+
+                // Input Listeners: Only move when holding the button
+                this.activeDir = null;
+                this.heldDirs = []; 
+                
+                window.addEventListener('keydown', (e) => {
+                    const key = e.key.toLowerCase();
+                    if(this.controlsMap[key]) {
+                        const dir = this.controlsMap[key];
+                        if(!this.heldDirs.includes(dir)) {
+                            this.heldDirs.push(dir);
+                            this.activeDir = dir;
+                        }
+                    }
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    const key = e.key.toLowerCase();
+                    if(this.controlsMap[key]) {
+                        const dir = this.controlsMap[key];
+                        this.heldDirs = this.heldDirs.filter(d => d !== dir);
+                        this.activeDir = this.heldDirs.length > 0 ? this.heldDirs[this.heldDirs.length - 1] : null;
+                    }
+                });
+
+                const dPadBtns = wrapper.querySelectorAll('.d-btn');
+                dPadBtns.forEach(btn => {
+                    const dir = btn.className.includes('up') ? 'up' : 
+                                btn.className.includes('down') ? 'down' : 
+                                btn.className.includes('left') ? 'left' : 'right';
+                    
+                    const press = (e) => { 
+                        e.preventDefault(); 
+                        if(!this.heldDirs.includes(dir)) {
+                            this.heldDirs.push(dir);
+                            this.activeDir = dir;
+                        }
+                    };
+                    const release = (e) => { 
+                        e.preventDefault(); 
+                        this.heldDirs = this.heldDirs.filter(d => d !== dir);
+                        this.activeDir = this.heldDirs.length > 0 ? this.heldDirs[this.heldDirs.length - 1] : null;
+                    };
+
+                    btn.addEventListener('touchstart', press);
+                    btn.addEventListener('mousedown', press);
+                    btn.addEventListener('touchend', release);
+                    btn.addEventListener('mouseup', release);
+                    btn.addEventListener('mouseleave', release);
+                });
+            }
+
+            resize() {
+                const cw = this.canvas.parentElement.clientWidth;
+                const ch = this.canvas.parentElement.clientHeight;
+                
+                const size = Math.min(cw, ch) * 0.95;
+                this.canvas.width = size;
+                this.canvas.height = size;
+                
+                if(this.grid.length > 0) {
+                    this.tileSize = size / this.grid[0].length;
+                }
+            }
+
+            loadLevel() {
+                // Pilih template maze secara acak
+                const rndIndex = Math.floor(Math.random() * mazeTemplates.length);
+                const tpl = mazeTemplates[rndIndex];
+                
+                this.grid = [];
+                this.enemies = [];
+                this.items = [];
+                let itemSpawns = [];
+
+                for(let r=0; r<tpl.length; r++) {
+                    let row = [];
+                    for(let c=0; c<tpl[r].length; c++) {
+                        let val = parseInt(tpl[r][c]);
+                        if (val === 2) { this.player = new Entity(c, r, 'player'); row.push(0); }
+                        else if (val === 3) { this.enemies.push(new Entity(c, r, 'enemy')); row.push(0); }
+                        else if (val === 4) { itemSpawns.push({c, r}); row.push(0); }
+                        else { row.push(val); }
+                    }
+                    this.grid.push(row);
+                }
+
+                this.mathData = MathEngine.generate();
+                this.qBox.innerText = this.mathData.text;
+
+                let options = [this.mathData.answer, ...this.mathData.decoys];
+                options.sort(() => Math.random() - 0.5);
+                
+                for(let i=0; i<Math.min(options.length, itemSpawns.length); i++) {
+                    this.items.push({
+                        c: itemSpawns[i].c,
+                        r: itemSpawns[i].r,
+                        value: options[i],
+                        isCorrect: options[i] === this.mathData.answer
+                    });
+                }
+                
+                this.mazeYOffset = -this.canvas.height; 
+            }
+
+            showMessage(text, isCorrect) {
+                this.overlay.innerText = text;
+                this.overlay.className = `overlay-msg ${isCorrect ? 'msg-correct' : 'msg-wrong'}`;
+                this.overlay.style.opacity = 1;
+                this.dom.style.transform = isCorrect ? 'scale(1.02)' : 'translateX(10px)';
+                
+                setTimeout(() => {
+                    this.overlay.style.opacity = 0;
+                    this.dom.style.transform = 'none';
+                    if(!isCorrect) this.dom.style.transform = 'translateX(-10px)';
+                    setTimeout(() => { this.dom.style.transform = 'none'; }, 50);
+                }, 500);
+            }
+
+            handleItemCollision(item, index) {
+                if (item.isCorrect) {
+                    Sounds.correct();
+                    this.score += 100;
+                    this.showMessage("BENAR!", true);
+                    this.loadLevel(); 
+                } else {
+                    Sounds.wrong();
+                    this.score = Math.max(0, this.score - 20);
+                    this.showMessage("SALAH!", false);
+                    this.items.splice(index, 1); 
+                }
+                this.updateUI();
+            }
+
+            handleEnemyCollision() {
+                Sounds.hit();
+                this.lives--;
+                this.showMessage("TERTABRAK!", false);
+                this.updateUI();
+                
+                if (this.lives <= 0) {
+                    this.isGameOver = true;
+                    this.gameOverPanel.classList.remove('hidden');
+                    this.gameOverPanel.querySelector('.final-score span').innerText = this.score;
+                } else {
+                    this.player.c = this.player.targetC = 1;
+                    this.player.r = this.player.targetR = 1;
+                    this.player.x = 1; this.player.y = 1;
+                }
+            }
+
+            updateUI() {
+                this.scoreBox.innerText = this.score;
+                this.heartsBox.innerText = '❤'.repeat(this.lives);
+            }
+
+            update() {
+                if (this.isGameOver) return;
+
+                if (this.mazeYOffset < 0) {
+                    this.mazeYOffset += 20; 
+                    if (this.mazeYOffset > 0) this.mazeYOffset = 0;
+                }
+
+                // Bergerak HANYA jika tombol sedang ditekan
+                if (this.activeDir) {
+                    this.player.setTarget(this.activeDir, this.grid);
+                }
+
+                this.player.update(this.grid);
+                this.enemies.forEach(e => e.update(this.grid));
+
+                for(let i = this.items.length - 1; i >= 0; i--) {
+                    if (this.player.c === this.items[i].c && this.player.r === this.items[i].r) {
+                        this.handleItemCollision(this.items[i], i);
+                        break;
+                    }
+                }
+
+                for(let e of this.enemies) {
+                    let dx = Math.abs(this.player.x - e.x);
+                    let dy = Math.abs(this.player.y - e.y);
+                    if (dx < 0.5 && dy < 0.5) {
+                        this.handleEnemyCollision();
+                        break;
+                    }
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                if(!this.tileSize) return;
+                let ts = this.tileSize;
+
+                this.ctx.save();
+                this.ctx.translate(0, this.mazeYOffset);
+
+                // Dinding Kotak-Kotak Ungu Neon
+                this.ctx.shadowBlur = 15; 
+                this.ctx.shadowColor = '#b026ff'; 
+                this.ctx.strokeStyle = '#b026ff'; 
+                this.ctx.lineWidth = 3; 
+
+                for(let r=0; r<this.grid.length; r++) {
+                    for(let c=0; c<this.grid[r].length; c++) {
+                        if(this.grid[r][c] === 1) {
+                            this.ctx.globalAlpha = 0.2;
+                            this.ctx.fillStyle = '#b026ff'; 
+                            this.ctx.fillRect(c*ts, r*ts, ts, ts);
+                            
+                            this.ctx.globalAlpha = 1.0;
+                            this.ctx.strokeRect(c*ts+2, r*ts+2, ts-4, ts-4);
+                        }
+                    }
+                }
+                this.ctx.shadowBlur = 0; 
+
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                this.ctx.font = `bold ${ts*0.6}px ${getComputedStyle(document.body).fontFamily}`;
+                
+                this.items.forEach(item => {
+                    this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(item.c*ts + ts/2, item.r*ts + ts/2, ts*0.4, 0, Math.PI*2);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.shadowBlur = 5;
+                    this.ctx.shadowColor = '#fff';
+                    this.ctx.fillText(item.value, item.c*ts + ts/2, item.r*ts + ts/2);
+                    this.ctx.shadowBlur = 0;
+                });
+
+                this.ctx.font = `${ts*0.8}px Arial`;
+                this.ctx.fillText('👽', this.player.x*ts + ts/2, this.player.y*ts + ts/2);
+
+                this.enemies.forEach(e => {
+                    this.ctx.fillText('🤖', e.x*ts + ts/2, e.y*ts + ts/2);
+                });
+
+                this.ctx.restore();
+            }
+
+            loop(timestamp) {
+                let dt = timestamp - this.lastTime;
+                if (dt > 16) { 
+                    this.update();
+                    this.draw();
+                    this.lastTime = timestamp;
+                }
+                if(!this.isGameOver) requestAnimationFrame(this.loop);
+            }
+        }
+
+        let gameInstances = [];
+
+        function startGame(numPlayers) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            
+            document.getElementById('menu-screen').classList.add('hidden');
+            const container = document.getElementById('game-container');
+            container.classList.remove('hidden');
+            container.innerHTML = ''; 
+            gameInstances = [];
+
+            const isPortrait = window.innerHeight > window.innerWidth;
+            if (numPlayers > 1) {
+                container.className = isPortrait ? 'layout-vertical' : 'layout-horizontal';
+            }
+
+            const configs = [
+                { color: 'blue', controls: {w:'up', s:'down', a:'left', d:'right', arrowup:'up', arrowdown:'down', arrowleft:'left', arrowright:'right'} },
+                { color: 'green', controls: {arrowup:'up', arrowdown:'down', arrowleft:'left', arrowright:'right'} }
+            ];
+
+            for(let i=0; i<numPlayers; i++) {
+                gameInstances.push(new GameInstance(`player-${i}`, configs[i].color, configs[i].controls));
+            }
+
+            setTimeout(() => {
+                gameInstances.forEach(g => g.resize());
+            }, 100);
+        }
+
+        window.addEventListener('resize', () => {
+            gameInstances.forEach(g => g.resize());
+            
+            const container = document.getElementById('game-container');
+            if (gameInstances.length > 1 && !container.classList.contains('hidden')) {
+                const isPortrait = window.innerHeight > window.innerWidth;
+                container.className = isPortrait ? 'layout-vertical' : 'layout-horizontal';
+            }
+        });
+
+    </script>
+</body>
+</html>
